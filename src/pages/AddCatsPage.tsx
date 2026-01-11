@@ -34,6 +34,9 @@ export default function AddCatsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const isEditing = !!catId;
 
+  // Calculate the starting index for new cats
+  const existingCatsCount = user?.cats.length || 0;
+
   useEffect(() => {
     if (!isLoggedIn) {
       navigate('/');
@@ -53,7 +56,8 @@ export default function AddCatsPage() {
   }, [isLoggedIn, catId, user, navigate]);
 
   const handleAddCat = () => {
-    if (cats.length >= 8) {
+    const totalCats = existingCatsCount + cats.length;
+    if (totalCats >= 8) {
       toast.error('สามารถเพิ่มได้สูงสุด 8 ตัวเท่านั้น');
       return;
     }
@@ -76,7 +80,8 @@ export default function AddCatsPage() {
     for (let i = 0; i < cats.length; i++) {
       const cat = cats[i];
       if (!cat.name) {
-        toast.error(`กรุณากรอกชื่อน้องแมวตัวที่ ${i + 1}`);
+        const displayIndex = isEditing ? 1 : existingCatsCount + i + 1;
+        toast.error(`กรุณากรอกชื่อน้องแมวตัวที่ ${displayIndex}`);
         return false;
       }
     }
@@ -123,6 +128,10 @@ export default function AddCatsPage() {
     navigate('/app');
   };
 
+  // Calculate total cats including existing ones
+  const totalCatsCount = existingCatsCount + cats.length;
+  const canAddMore = totalCatsCount < 8;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -150,6 +159,11 @@ export default function AddCatsPage() {
                 ? 'แก้ไขข้อมูลน้องแมวของคุณ'
                 : 'เพิ่มข้อมูลน้องแมวเพื่อรับคำแนะนำอาหารที่เหมาะสม'}
             </p>
+            {!isEditing && existingCatsCount > 0 && (
+              <p className="text-sm text-primary mt-1">
+                คุณมีน้องแมวแล้ว {existingCatsCount} ตัว
+              </p>
+            )}
           </div>
 
           {/* Cat Profiles */}
@@ -157,7 +171,7 @@ export default function AddCatsPage() {
             {!isEditing && (
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-lg">ข้อมูลน้องแมว</h2>
-                <span className="text-sm text-muted-foreground">{cats.length}/8 ตัว</span>
+                <span className="text-sm text-muted-foreground">{totalCatsCount}/8 ตัว</span>
               </div>
             )}
 
@@ -166,7 +180,7 @@ export default function AddCatsPage() {
                 <CatProfileForm
                   key={cat.id}
                   cat={cat}
-                  index={index}
+                  index={isEditing ? 0 : existingCatsCount + index} // Show correct index number
                   onChange={(updated) => handleCatChange(index, updated)}
                   onRemove={() => handleRemoveCat(index)}
                   showRemove={!isEditing && cats.length > 1}
@@ -175,7 +189,7 @@ export default function AddCatsPage() {
               ))}
             </div>
 
-            {!isEditing && cats.length < 8 && (
+            {!isEditing && canAddMore && (
               <button
                 type="button"
                 onClick={handleAddCat}
@@ -198,7 +212,7 @@ export default function AddCatsPage() {
               {isLoading ? 'กำลังบันทึก...' : isEditing ? 'บันทึกการแก้ไข' : 'บันทึกและเริ่มใช้งาน'}
             </button>
 
-            {!isEditing && (
+            {!isEditing && existingCatsCount === 0 && (
               <button
                 type="button"
                 onClick={handleSkip}

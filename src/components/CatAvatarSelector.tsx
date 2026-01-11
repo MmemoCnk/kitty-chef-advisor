@@ -10,7 +10,7 @@ interface CatAvatarSelectorProps {
   onAddCat?: () => void;
 }
 
-// Generate a color from cat name
+// Generate a color from cat name using full name hash
 function getCatColor(name: string): string {
   const colors = [
     'from-orange-400 to-amber-500',
@@ -22,8 +22,9 @@ function getCatColor(name: string): string {
     'from-red-400 to-pink-500',
     'from-indigo-400 to-blue-500',
   ];
-  const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
-  return colors[index];
+  // Use full name for hash to differentiate cats with same first letter
+  const hash = name.split('').reduce((acc, char, i) => acc + char.charCodeAt(0) * (i + 1), 0);
+  return colors[hash % colors.length];
 }
 
 export function CatAvatarSelector({ cats, selectedCatIds, onToggleCat, onAddCat }: CatAvatarSelectorProps) {
@@ -38,7 +39,7 @@ export function CatAvatarSelector({ cats, selectedCatIds, onToggleCat, onAddCat 
   };
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+    <div className="flex items-center gap-3 overflow-x-auto pb-6 scrollbar-hide">
       {cats.map((cat) => {
         const isSelected = selectedCatIds.includes(cat.id);
         const colorGradient = getCatColor(cat.name);
@@ -63,20 +64,24 @@ export function CatAvatarSelector({ cats, selectedCatIds, onToggleCat, onAddCat 
                 <Check size={12} className="text-primary-foreground" />
               </div>
             )}
-            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap truncate max-w-[60px]">
+            {/* Show full name below avatar */}
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-medium whitespace-nowrap max-w-[80px] truncate">
               {cat.name}
             </span>
           </button>
         );
       })}
 
-      {/* Add Cat Button */}
+      {/* Always show Add Cat Button if less than 8 cats */}
       {cats.length < 8 && (
         <button
           onClick={handleAddCat}
-          className="flex-shrink-0 w-12 h-12 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+          className="relative flex-shrink-0 w-12 h-12 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
         >
           <Plus size={24} />
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-muted-foreground whitespace-nowrap">
+            เพิ่ม
+          </span>
         </button>
       )}
     </div>
