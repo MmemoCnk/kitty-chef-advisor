@@ -6,7 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import AddCatsPage from "./pages/AddCatsPage";
 import AppPage from "./pages/AppPage";
+import HistoryPage from "./pages/HistoryPage";
+import ComparePage from "./pages/ComparePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,8 +24,11 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/cats/add" element={<AddCatsPage />} />
+            <Route path="/cats/edit/:catId" element={<AddCatsPage />} />
             <Route path="/app" element={<AppPage />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/compare" element={<ComparePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
