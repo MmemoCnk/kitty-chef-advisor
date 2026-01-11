@@ -6,6 +6,9 @@ export interface CatProfile {
   birthDate: string;
   isNeutered: boolean;
   allergies: string[];
+  allergiesOther: string; // Free text for additional allergies
+  dislikes: string[];
+  dislikesOther: string; // Free text for additional dislikes
   furLength: 'short' | 'long';
   diseases: string;
   wantsWeightLoss: boolean;
@@ -13,8 +16,18 @@ export interface CatProfile {
 
 export interface User {
   id: string;
+  email: string;
   username: string;
   cats: CatProfile[];
+}
+
+export interface SearchHistoryItem {
+  id: string;
+  type: 'search' | 'compare';
+  query?: string;
+  productIds: string[];
+  catIds: string[];
+  timestamp: Date;
 }
 
 export interface FoodProduct {
@@ -63,8 +76,7 @@ export type AllergyOption =
   | 'eggs'
   | 'wheat'
   | 'corn'
-  | 'soy'
-  | 'other';
+  | 'soy';
 
 export const ALLERGY_LABELS: Record<AllergyOption, string> = {
   chicken: 'แพ้ไก่ 🐔',
@@ -76,7 +88,18 @@ export const ALLERGY_LABELS: Record<AllergyOption, string> = {
   wheat: 'แพ้ข้าวสาลี 🌾',
   corn: 'แพ้ข้าวโพด 🌽',
   soy: 'แพ้ถั่วเหลือง 🫘',
-  other: 'อื่นๆ',
+};
+
+export const DISLIKE_LABELS: Record<AllergyOption, string> = {
+  chicken: 'ไม่ชอบไก่ 🐔',
+  fish: 'ไม่ชอบปลา 🐟',
+  beef: 'ไม่ชอบเนื้อวัว 🐄',
+  pork: 'ไม่ชอบหมู 🐷',
+  dairy: 'ไม่ชอบนม 🥛',
+  eggs: 'ไม่ชอบไข่ 🥚',
+  wheat: 'ไม่ชอบข้าวสาลี 🌾',
+  corn: 'ไม่ชอบข้าวโพด 🌽',
+  soy: 'ไม่ชอบถั่วเหลือง 🫘',
 };
 
 export const BREED_OPTIONS = [

@@ -1,6 +1,6 @@
 import React from 'react';
-import { CatProfile, ALLERGY_LABELS, AllergyOption, BREED_OPTIONS } from '@/types/cat';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { CatProfile, ALLERGY_LABELS, DISLIKE_LABELS, AllergyOption, BREED_OPTIONS } from '@/types/cat';
+import { ChevronDown, Trash2 } from 'lucide-react';
 
 interface CatProfileFormProps {
   cat: Partial<CatProfile>;
@@ -8,10 +8,18 @@ interface CatProfileFormProps {
   onRemove?: () => void;
   index: number;
   showRemove?: boolean;
+  showHeader?: boolean;
 }
 
-export function CatProfileForm({ cat, onChange, onRemove, index, showRemove = true }: CatProfileFormProps) {
-  const allergyOptions: AllergyOption[] = ['chicken', 'fish', 'beef', 'pork', 'dairy', 'eggs', 'wheat', 'corn', 'soy'];
+export function CatProfileForm({ 
+  cat, 
+  onChange, 
+  onRemove, 
+  index, 
+  showRemove = true,
+  showHeader = true 
+}: CatProfileFormProps) {
+  const options: AllergyOption[] = ['chicken', 'fish', 'beef', 'pork', 'dairy', 'eggs', 'wheat', 'corn', 'soy'];
 
   const handleAllergyToggle = (allergy: string) => {
     const current = cat.allergies || [];
@@ -22,22 +30,33 @@ export function CatProfileForm({ cat, onChange, onRemove, index, showRemove = tr
     }
   };
 
+  const handleDislikeToggle = (dislike: string) => {
+    const current = cat.dislikes || [];
+    if (current.includes(dislike)) {
+      onChange({ ...cat, dislikes: current.filter((d) => d !== dislike) });
+    } else {
+      onChange({ ...cat, dislikes: [...current, dislike] });
+    }
+  };
+
   return (
     <div className="cat-profile-card space-y-4 animate-slide-up">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-lg flex items-center gap-2">
-          <span className="text-2xl">🐱</span>
-          น้องแมวตัวที่ {index + 1}
-        </h3>
-        {showRemove && onRemove && (
-          <button
-            onClick={onRemove}
-            className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"
-          >
-            <Trash2 size={18} />
-          </button>
-        )}
-      </div>
+      {showHeader && (
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <span className="text-2xl">🐱</span>
+            น้องแมวตัวที่ {index + 1}
+          </h3>
+          {showRemove && onRemove && (
+            <button
+              onClick={onRemove}
+              className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Name */}
       <div>
@@ -85,7 +104,7 @@ export function CatProfileForm({ cat, onChange, onRemove, index, showRemove = tr
                   : 'bg-secondary text-secondary-foreground'
               }`}
             >
-              ♂ เพศผู้
+              ♂ ผู้
             </button>
             <button
               type="button"
@@ -96,7 +115,7 @@ export function CatProfileForm({ cat, onChange, onRemove, index, showRemove = tr
                   : 'bg-secondary text-secondary-foreground'
               }`}
             >
-              ♀ เพศเมีย
+              ♀ เมีย
             </button>
           </div>
         </div>
@@ -171,9 +190,11 @@ export function CatProfileForm({ cat, onChange, onRemove, index, showRemove = tr
 
       {/* Allergies */}
       <div>
-        <label className="text-sm font-medium text-muted-foreground mb-2 block">ข้อมูลการแพ้</label>
-        <div className="flex flex-wrap gap-2">
-          {allergyOptions.map((allergy) => (
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">
+          🚫 ของที่แพ้ (ห้ามกินเด็ดขาด)
+        </label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {options.map((allergy) => (
             <button
               key={allergy}
               type="button"
@@ -188,6 +209,43 @@ export function CatProfileForm({ cat, onChange, onRemove, index, showRemove = tr
             </button>
           ))}
         </div>
+        <input
+          type="text"
+          value={cat.allergiesOther || ''}
+          onChange={(e) => onChange({ ...cat, allergiesOther: e.target.value })}
+          placeholder="อื่นๆ ที่แพ้ (คั่นด้วยเครื่องหมาย ,)"
+          className="cat-input text-sm"
+        />
+      </div>
+
+      {/* Dislikes */}
+      <div>
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">
+          😾 ของที่ไม่ชอบ (กินได้แต่ไม่ชอบ)
+        </label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {options.map((dislike) => (
+            <button
+              key={dislike}
+              type="button"
+              onClick={() => handleDislikeToggle(dislike)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                cat.dislikes?.includes(dislike)
+                  ? 'bg-warning text-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              {DISLIKE_LABELS[dislike]}
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={cat.dislikesOther || ''}
+          onChange={(e) => onChange({ ...cat, dislikesOther: e.target.value })}
+          placeholder="อื่นๆ ที่ไม่ชอบ (คั่นด้วยเครื่องหมาย ,)"
+          className="cat-input text-sm"
+        />
       </div>
 
       {/* Diseases */}
