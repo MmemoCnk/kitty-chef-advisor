@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { FoodProduct, CatProfile } from '@/types/cat';
 import { searchFoodByBrand, mockFoods, getFoodById } from '@/data/mockFoods';
@@ -11,13 +11,14 @@ import { SimilarProductsCard } from '@/components/SimilarProductsCard';
 import { FilterChips } from '@/components/FilterChips';
 import { FoodProductCard } from '@/components/FoodProductCard';
 import { CatAvatarSelector } from '@/components/CatAvatarSelector';
-import { Search, Camera, LogOut, User, ChevronLeft, Clock, GitCompare } from 'lucide-react';
+import { Search, Camera, LogOut, User, ChevronLeft, Clock, GitCompare, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 type View = 'search' | 'results' | 'detail';
 
 export default function AppPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isLoggedIn, logout, addToHistory } = useAuth();
 
   const [view, setView] = useState<View>('search');
@@ -28,11 +29,19 @@ export default function AppPage() {
   const [selectedCatIds, setSelectedCatIds] = useState<string[]>([]);
   const [compareList, setCompareList] = useState<string[]>([]);
 
+  // Initialize selected cats when user data changes
   useEffect(() => {
-    if (user?.cats.length) {
-      setSelectedCatIds([user.cats[0].id]);
+    if (user?.cats && user.cats.length > 0) {
+      // Only initialize if selectedCatIds is empty or contains invalid ids
+      setSelectedCatIds((prev) => {
+        const validIds = prev.filter((id) => user.cats.some((c) => c.id === id));
+        if (validIds.length === 0) {
+          return user.cats.map((c) => c.id); // Select all cats by default
+        }
+        return validIds;
+      });
     }
-  }, [user]);
+  }, [user?.cats]);
 
   const selectedCats = user?.cats.filter((c) => selectedCatIds.includes(c.id)) || [];
 
@@ -170,11 +179,15 @@ export default function AppPage() {
           </div>
         </div>
 
-        {/* Cat Avatar Selector */}
-        {isLoggedIn && user && user.cats.length > 0 && view === 'search' && (
+        {/* Cat Avatar Selector - Always show for logged in users */}
+        {isLoggedIn && user && (
           <div className="px-4 pb-4 max-w-lg mx-auto">
             <p className="text-xs text-muted-foreground mb-2">เลือกน้องแมวที่จะค้นหา (เลือกได้หลายตัว)</p>
-            <CatAvatarSelector cats={user.cats} selectedCatIds={selectedCatIds} onToggleCat={handleToggleCat} />
+            <CatAvatarSelector 
+              cats={user.cats} 
+              selectedCatIds={selectedCatIds} 
+              onToggleCat={handleToggleCat} 
+            />
           </div>
         )}
       </div>
