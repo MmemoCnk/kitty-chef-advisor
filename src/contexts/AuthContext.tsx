@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, CatProfile, SearchHistoryItem } from '@/types/cat';
 
 interface AuthContextType {
@@ -18,12 +18,56 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user storage
-const mockUsers: { email: string; username: string; password: string; cats: CatProfile[] }[] = [];
+const USERS_STORAGE_KEY = 'kitty_mock_users_v1';
+const SESSION_STORAGE_KEY = 'kitty_user_session_v1';
+
+const loadMockUsers = ():
+  { email: string; username: string; password: string; cats: CatProfile[] }[] => {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveMockUsers = (
+  users: { email: string; username: string; password: string; cats: CatProfile[] }[]
+) => {
+  try {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  } catch {
+    // ignore
+  }
+};
+
+// Mock user storage (persisted in localStorage for demo reliability)
+const mockUsers: { email: string; username: string; password: string; cats: CatProfile[] }[] =
+  loadMockUsers();
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as User) : null;
+    } catch {
+      return null;
+    }
+  });
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+
+  useEffect(() => {
+    try {
+      if (user) {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
+      } else {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }, [user]);
 
   const login = (username: string, password: string): boolean => {
     const foundUser = mockUsers.find(
@@ -51,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (exists) return false;
 
     mockUsers.push({ email, username, password, cats: [] });
+    saveMockUsers(mockUsers);
+
     setUser({
       id: username,
       email,
@@ -66,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userIndex = mockUsers.findIndex((u) => u.username === user.username);
       if (userIndex !== -1) {
         mockUsers[userIndex].cats = cats;
+        saveMockUsers(mockUsers);
       }
     }
   };
