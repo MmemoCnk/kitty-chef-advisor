@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { FoodProduct, CatProfile } from '@/types/cat';
 import { searchFoodByBrand, mockFoods, getFoodById } from '@/data/mockFoods';
@@ -19,6 +19,7 @@ type View = 'search' | 'results' | 'detail';
 export default function AppPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user, isLoggedIn, logout, addToHistory } = useAuth();
 
   const [view, setView] = useState<View>('search');
@@ -28,6 +29,25 @@ export default function AppPage() {
   const [filters, setFilters] = useState({ grainFree: false, holistic: false, medical: false });
   const [selectedCatIds, setSelectedCatIds] = useState<string[]>([]);
   const [compareList, setCompareList] = useState<string[]>([]);
+
+  // Handle URL parameters for navigation from history
+  useEffect(() => {
+    const searchParam = searchParams.get('search');
+    const productParam = searchParams.get('product');
+    
+    if (searchParam) {
+      setSearchQuery(searchParam);
+      const results = searchFoodByBrand(searchParam);
+      setSearchResults(results);
+      setView('results');
+    } else if (productParam) {
+      const product = getFoodById(productParam);
+      if (product) {
+        setSelectedProduct(product);
+        setView('detail');
+      }
+    }
+  }, [searchParams]);
 
   // Initialize selected cats when user data changes
   useEffect(() => {
@@ -58,10 +78,19 @@ export default function AppPage() {
   };
 
   const filterResultsByCats = (products: FoodProduct[]): FoodProduct[] => {
-    if (selectedCats.length === 0) return products;
+    // Apply category filters first
+    let filtered = products.filter((product) => {
+      if (filters.grainFree && !product.isGrainFree) return false;
+      if (filters.holistic && !product.isHolistic) return false;
+      if (filters.medical && !product.isMedical) return false;
+      return true;
+    });
 
-    return products.filter((product) => {
-      // Check allergies for ALL selected cats - must not contain any allergen
+    // If no cats selected, return category-filtered results
+    if (selectedCats.length === 0) return filtered;
+
+    // Filter out products with allergens from ANY selected cat
+    return filtered.filter((product) => {
       for (const cat of selectedCats) {
         const allAllergies = [...(cat.allergies || [])];
         if (cat.allergiesOther) {
@@ -74,12 +103,6 @@ export default function AppPage() {
 
         if (hasAllergen) return false;
       }
-
-      // Apply category filters
-      if (filters.grainFree && !product.isGrainFree) return false;
-      if (filters.holistic && !product.isHolistic) return false;
-      if (filters.medical && !product.isMedical) return false;
-
       return true;
     });
   };
@@ -102,6 +125,11 @@ export default function AppPage() {
   const handleProductSelect = (product: FoodProduct) => {
     setSelectedProduct(product);
     setView('detail');
+    
+    // Save to history as viewed product
+    if (isLoggedIn) {
+      addToHistory({ type: 'view', productIds: [product.id], catIds: selectedCatIds });
+    }
   };
 
   const handleFilterChange = (key: 'grainFree' | 'holistic' | 'medical') => {
