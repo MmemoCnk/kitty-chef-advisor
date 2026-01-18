@@ -23,7 +23,7 @@ export interface User {
 
 export interface SearchHistoryItem {
   id: string;
-  type: 'search' | 'compare';
+  type: 'search' | 'compare' | 'view';
   query?: string;
   productIds: string[];
   catIds: string[];
