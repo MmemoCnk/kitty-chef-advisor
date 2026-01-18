@@ -17,19 +17,40 @@ export function FoodProductCard({
   isInCompare = false,
   onToggleCompare
 }: FoodProductCardProps) {
-  // Check for dislikes in selected cats
+  // Check for allergy + dislike warnings in selected cats
+  const allergyWarnings: { catName: string; allergen: string }[] = [];
   const dislikeWarnings: { catName: string; ingredient: string }[] = [];
-  
-  selectedCats.forEach((cat) => {
-    const allDislikes = [...(cat.dislikes || [])];
-    if (cat.dislikesOther) {
-      allDislikes.push(...cat.dislikesOther.split(',').map((d) => d.trim().toLowerCase()));
-    }
 
-    allDislikes.forEach((dislike) => {
-      const found = product.ingredients.some((ing) =>
-        ing.toLowerCase().includes(dislike.toLowerCase())
-      );
+  const normalizeCsv = (value?: string) =>
+    (value ?? '')
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean);
+
+  selectedCats.forEach((cat) => {
+    const allergies = Array.from(
+      new Set([
+        ...(cat.allergies || []).map((a) => a.trim().toLowerCase()).filter(Boolean),
+        ...normalizeCsv(cat.allergiesOther),
+      ])
+    );
+
+    allergies.forEach((allergen) => {
+      const found = product.ingredients.some((ing) => ing.toLowerCase().includes(allergen));
+      if (found) {
+        allergyWarnings.push({ catName: cat.name, allergen });
+      }
+    });
+
+    const dislikes = Array.from(
+      new Set([
+        ...(cat.dislikes || []).map((d) => d.trim().toLowerCase()).filter(Boolean),
+        ...normalizeCsv(cat.dislikesOther),
+      ])
+    );
+
+    dislikes.forEach((dislike) => {
+      const found = product.ingredients.some((ing) => ing.toLowerCase().includes(dislike));
       if (found) {
         dislikeWarnings.push({ catName: cat.name, ingredient: dislike });
       }
@@ -39,9 +60,17 @@ export function FoodProductCard({
   // Check which cats this food is good for
   const suitableFor: string[] = [];
   selectedCats.forEach((cat) => {
-    const hasAllergy = [...(cat.allergies || []), ...(cat.allergiesOther?.split(',').map((a) => a.trim()) || [])]
-      .some((allergy) => product.ingredients.some((ing) => ing.toLowerCase().includes(allergy.toLowerCase())));
-    
+    const allergies = Array.from(
+      new Set([
+        ...(cat.allergies || []).map((a) => a.trim().toLowerCase()).filter(Boolean),
+        ...normalizeCsv(cat.allergiesOther),
+      ])
+    );
+
+    const hasAllergy = allergies.some((allergy) =>
+      product.ingredients.some((ing) => ing.toLowerCase().includes(allergy))
+    );
+
     if (!hasAllergy) {
       const hasDislike = dislikeWarnings.some((w) => w.catName === cat.name);
       if (!hasDislike) {
@@ -116,6 +145,22 @@ export function FoodProductCard({
         </div>
       </div>
 
+      {/* Allergy Warnings */}
+      {allergyWarnings.length > 0 && (
+        <div className="mt-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={16} className="text-destructive flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              {allergyWarnings.map((warning, idx) => (
+                <p key={idx}>
+                  มี<span className="font-medium">{warning.allergen}</span> - {warning.catName} แพ้
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dislike Warnings */}
       {dislikeWarnings.length > 0 && (
         <div className="mt-3 p-3 rounded-xl bg-warning/10 border border-warning/20">
@@ -135,9 +180,7 @@ export function FoodProductCard({
       {/* Suitable for */}
       {suitableFor.length > 0 && selectedCats.length > 1 && (
         <div className="mt-3 p-3 rounded-xl bg-accent/10 border border-accent/20">
-          <p className="text-sm text-accent">
-            ✅ เหมาะกับน้อง {suitableFor.join(', ')}
-          </p>
+          <p className="text-sm text-accent">✅ เหมาะกับน้อง {suitableFor.join(', ')}</p>
         </div>
       )}
     </div>

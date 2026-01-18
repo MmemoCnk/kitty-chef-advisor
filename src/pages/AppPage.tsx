@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { FoodProduct, CatProfile } from '@/types/cat';
-import { searchFoodByBrand, mockFoods, getFoodById } from '@/data/mockFoods';
+import { searchFoodByBrand, getFoodById } from '@/data/mockFoods';
 import { CatIcon } from '@/components/CatIcon';
 import { NutritionCard } from '@/components/NutritionCard';
 import { SupplementsCard } from '@/components/SupplementsCard';
@@ -11,14 +11,13 @@ import { SimilarProductsCard } from '@/components/SimilarProductsCard';
 import { FilterChips } from '@/components/FilterChips';
 import { FoodProductCard } from '@/components/FoodProductCard';
 import { CatAvatarSelector } from '@/components/CatAvatarSelector';
-import { Search, Camera, LogOut, User, ChevronLeft, Clock, GitCompare, Plus } from 'lucide-react';
+import { Search, Camera, LogOut, User, ChevronLeft, Clock, GitCompare } from 'lucide-react';
 import { toast } from 'sonner';
 
 type View = 'search' | 'results' | 'detail';
 
 export default function AppPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user, isLoggedIn, logout, addToHistory } = useAuth();
 
@@ -27,8 +26,23 @@ export default function AppPage() {
   const [searchResults, setSearchResults] = useState<FoodProduct[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<FoodProduct | null>(null);
   const [filters, setFilters] = useState({ grainFree: false, holistic: false, medical: false });
-  const [selectedCatIds, setSelectedCatIds] = useState<string[]>([]);
+  const [selectedCatIds, setSelectedCatIds] = useState<string[]>(() => {
+    try {
+      const raw = sessionStorage.getItem('kitty_selectedCatIds');
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [compareList, setCompareList] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('kitty_selectedCatIds', JSON.stringify(selectedCatIds));
+    } catch {
+      // ignore
+    }
+  }, [selectedCatIds]);
 
   // Handle URL parameters for navigation from history
   useEffect(() => {
@@ -49,22 +63,89 @@ export default function AppPage() {
     }
   }, [searchParams]);
 
-  // Initialize selected cats when user data changes
+  // Validate selected cats when user data changes (don't auto-select all)
   useEffect(() => {
-    if (user?.cats && user.cats.length > 0) {
-      // Only initialize if selectedCatIds is empty or contains invalid ids
-      setSelectedCatIds((prev) => {
-        const validIds = prev.filter((id) => user.cats.some((c) => c.id === id));
-        if (validIds.length === 0) {
-          return user.cats.map((c) => c.id); // Select all cats by default
-        }
-        return validIds;
-      });
-    }
+    if (!user?.cats) return;
+    setSelectedCatIds((prev) => prev.filter((id) => user.cats.some((c) => c.id === id)));
   }, [user?.cats]);
 
-  const selectedCats = user?.cats.filter((c) => selectedCatIds.includes(c.id)) || [];
+  const selectedCats = useMemo(
+    () => user?.cats.filter((c) => selectedCatIds.includes(c.id)) || [],
+    [user?.cats, selectedCatIds]
+  );
 
+  const warnedForSearchRef = useRef<Set<string>>(new Set());
+  const prevSelectedCatIdsRef = useRef<string[]>(selectedCatIds);
+
+  const normalizeCsv = (value?: string) =>
+    (value ?? '')
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean);
+
+  const getCatAllergies = (cat: CatProfile) => {
+    const base = (cat.allergies || []).map((a) => a.trim().toLowerCase()).filter(Boolean);
+    return Array.from(new Set([...base, ...normalizeCsv(cat.allergiesOther)]));
+  };
+
+  const getMatchedAllergiesInProducts = (cat: CatProfile, products: FoodProduct[]) => {
+    const allergies = getCatAllergies(cat);
+    return allergies.filter((allergy) =>
+      products.some((product) =>
+        product.ingredients.some((ing) => ing.toLowerCase().includes(allergy))
+      )
+    );
+  };
+
+  useEffect(() => {
+    // Reset cache when search query changes so warnings can appear again
+    warnedForSearchRef.current.clear();
+  }, [searchQuery]);
+
+  // Warn when results are loaded (search / history)
+  useEffect(() => {
+    if (view !== 'results') return;
+    if (selectedCats.length === 0) return;
+    if (searchResults.length === 0) return;
+
+    selectedCats.forEach((cat) => {
+      const matched = getMatchedAllergiesInProducts(cat, searchResults);
+      if (matched.length === 0) return;
+
+      const key = `${cat.id}|${matched.slice().sort().join('|')}`;
+      if (warnedForSearchRef.current.has(key)) return;
+
+      warnedForSearchRef.current.add(key);
+      toast.error(`⚠️ ${cat.name} แพ้: ${matched.join(', ')}`);
+    });
+  }, [searchResults, selectedCats, view]);
+
+  // Warn when user selects a cat after results are shown (or in detail page)
+  useEffect(() => {
+    const prev = prevSelectedCatIdsRef.current;
+    const added = selectedCatIds.filter((id) => !prev.includes(id));
+    prevSelectedCatIdsRef.current = selectedCatIds;
+
+    if (added.length === 0) return;
+    if (!user?.cats) return;
+
+    const productsToCheck =
+      view === 'detail' && selectedProduct
+        ? [selectedProduct]
+        : view === 'results'
+          ? searchResults
+          : [];
+
+    if (productsToCheck.length === 0) return;
+
+    user.cats
+      .filter((c) => added.includes(c.id))
+      .forEach((cat) => {
+        const matched = getMatchedAllergiesInProducts(cat, productsToCheck);
+        if (matched.length === 0) return;
+        toast.error(`⚠️ ${cat.name} แพ้: ${matched.join(', ')}`);
+      });
+  }, [searchResults, selectedCatIds, selectedProduct, user?.cats, view]);
   const handleLogout = () => {
     logout();
     toast.success('ออกจากระบบแล้ว');
@@ -78,31 +159,11 @@ export default function AppPage() {
   };
 
   const filterResultsByCats = (products: FoodProduct[]): FoodProduct[] => {
-    // Apply category filters first
-    let filtered = products.filter((product) => {
+    // Apply category filters only (cat selection should NOT hide results)
+    return products.filter((product) => {
       if (filters.grainFree && !product.isGrainFree) return false;
       if (filters.holistic && !product.isHolistic) return false;
       if (filters.medical && !product.isMedical) return false;
-      return true;
-    });
-
-    // If no cats selected, return category-filtered results
-    if (selectedCats.length === 0) return filtered;
-
-    // Filter out products with allergens from ANY selected cat
-    return filtered.filter((product) => {
-      for (const cat of selectedCats) {
-        const allAllergies = [...(cat.allergies || [])];
-        if (cat.allergiesOther) {
-          allAllergies.push(...cat.allergiesOther.split(',').map((a) => a.trim().toLowerCase()));
-        }
-
-        const hasAllergen = allAllergies.some((allergy) =>
-          product.ingredients.some((ing) => ing.toLowerCase().includes(allergy.toLowerCase()))
-        );
-
-        if (hasAllergen) return false;
-      }
       return true;
     });
   };
